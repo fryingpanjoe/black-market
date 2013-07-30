@@ -1,0 +1,352 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"penalt",
+				"penalty_reduction_time"
+			],
+			[
+				"pena",
+				"penalty_time"
+			],
+			[
+				"pen",
+				"penalty_time"
+			],
+			[
+				"penal",
+				"penalty_reduction_time"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "python/blackmarket/shared/config.py",
+			"settings":
+			{
+				"buffer_size": 571,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "python/blackmarket/shared/networking.py",
+			"settings":
+			{
+				"buffer_size": 15174,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "python/blackmarket/shared/scheduling.py",
+			"settings":
+			{
+				"buffer_size": 1473,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "python/blackmarket/server/storage.py",
+			"settings":
+			{
+				"buffer_size": 7905,
+				"line_ending": "Windows",
+				"name": "import sqlite3"
+			}
+		}
+	],
+	"build_system": "",
+	"command_palette":
+	{
+		"height": 58.0,
+		"selected_items":
+		[
+			[
+				"remove",
+				"Package Control: Remove Package"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 400.0
+	},
+	"console":
+	{
+		"height": 125.0
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/D/Downloads/py-bcrypt-0.3.tar/dist/py-bcrypt-0.3/py-bcrypt-0.3/py_bcrypt.egg-info/SOURCES.txt",
+		"/D/Downloads/py-bcrypt-0.3.tar/dist/py-bcrypt-0.3/py-bcrypt-0.3/dist/py_bcrypt-0.3-py2.7-win-amd64.egg",
+		"/D/Downloads/py-bcrypt-0.3.tar/dist/py-bcrypt-0.3/py-bcrypt-0.3/setup.cfg",
+		"/D/Downloads/py-bcrypt-0.3.tar/dist/py-bcrypt-0.3/py-bcrypt-0.3/setup.py",
+		"/D/Development/github/black-market/python/blackmarket/server/__init__.py",
+		"/C/Users/Pelle/Documents/sms-20120318205244.xml",
+		"/C/Users/Pelle/Documents/sms-20110806000352.xml",
+		"/C/Users/Pelle/Documents/sms-20100914132556.xml",
+		"/C/Users/Pelle/AppData/Roaming/Sublime Text 2/Packages/Default/Default (Windows).sublime-keymap",
+		"/D/Development/github/black-market/python/blackmarket/shared/events.py",
+		"/D/Development/github/black-market/python/blackmarket/__init__.py",
+		"/C/Users/Pelle/AppData/Roaming/Sublime Text 2/Packages/User/Preferences.sublime-settings",
+		"/C/Users/Pelle/AppData/Roaming/Sublime Text 2/Packages/Default/Preferences.sublime-settings",
+		"/D/Media/TV/Simpsons/playlist-1-5.txt",
+		"/D/Media/TV/Simpsons/playlist-1-4.txt",
+		"/D/Media/TV/Simpsons/playlist.txt",
+		"/D/Media/TV/Simpsons/playlist-1-2.txt",
+		"/D/Media/TV/Simpsons/playlist-1-3.txt",
+		"/D/Media/TV/Simpsons/playlist-1.txt"
+	],
+	"find":
+	{
+		"height": 34.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"send_data",
+			"out_events",
+			"out_events\n",
+			"synchronize",
+			"receive_data",
+			"on_data_received",
+			"recv_message_id",
+			"send_message_id",
+			"LOG.",
+			"receive_events",
+			"send_message",
+			"GOOD_RTT_THRESHOLD",
+			"tuple",
+			"alt",
+			"RuntimeError",
+			"timers",
+			"unpack",
+			"pack",
+			"socket.",
+			"select.",
+			"struct.unpack",
+			"__tree",
+			"E:\\Media\\TV"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			"RTT_THRESHOLD",
+			"NetworkError",
+			"jobs",
+			"struct.unpack",
+			"struct.pack",
+			"",
+			"unpack",
+			"tree",
+			"D:\\Media\\TV"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 3,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "python/blackmarket/shared/config.py",
+					"settings":
+					{
+						"buffer_size": 571,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								571,
+								571
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "python/blackmarket/shared/networking.py",
+					"settings":
+					{
+						"buffer_size": 15174,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								14655,
+								14655
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 6853.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "python/blackmarket/shared/scheduling.py",
+					"settings":
+					{
+						"buffer_size": 1473,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								831,
+								831
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "python/blackmarket/server/storage.py",
+					"settings":
+					{
+						"buffer_size": 7905,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								7905,
+								7905
+							]
+						],
+						"settings":
+						{
+							"auto_name": "import sqlite3",
+							"syntax": "Packages/Python/Python.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 2745.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 0.0
+	},
+	"input":
+	{
+		"height": 31.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"replace":
+	{
+		"height": 62.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"show_minimap": false,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 220.0,
+	"status_bar_visible": true
+}
