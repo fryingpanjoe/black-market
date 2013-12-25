@@ -57,12 +57,13 @@ planet_color = [(random.random(), random.random(), random.random()) for i in ran
 start_time = time.time()
 last_update = 0
 
+sphere = gluNewQuadric()
+
 
 def draw_sphere(x, y, z, r, g, b, radius):
     glPushMatrix()
     glTranslatef(x, y, z)
     glColor3f(r, g, b)
-    sphere = gluNewQuadric()
     gluSphere(sphere, radius, 20, 20)
     glPopMatrix()
 
@@ -193,6 +194,6 @@ def on_resize(width, height):
 def update(frame_time):
     pass
 
-pyglet.clock.schedule_interval(update, 1. / 120.)
+pyglet.clock.schedule_interval(update, 1. / 60.)
 
 pyglet.app.run()
