@@ -65,15 +65,15 @@ ui_root = ui.UIView()
 ui_renderer = ui.UIRenderer(ui_root)
 
 icon = pyglet.image.load('icon.png')
-print icon.get_image_data().width
-print icon.get_image_data().height
-print icon.get_image_data().format
-print icon.format
+
+#ui_hex = ui.UIRegularHexagon(
+#    x=320, y=200, name='hexagon', background_color=(32, 32, 32),
+#    border_color=(64, 64, 64), border_width=4., side_length=48.,
+#    icon_image=icon, icon_blit=False)
 
 ui_hex = ui.UIRegularHexagon(
     x=320, y=200, name='hexagon', background_color=(32, 32, 32),
-    border_color=(64, 64, 64), border_width=4., side_length=48.,
-    icon_image=icon, icon_blit=False)
+    border_color=(64, 64, 64), border_width=4., side_length=48.)
 
 ui_root.views.append(ui_hex)
 
@@ -101,6 +101,9 @@ def on_draw():
     global last_update
 
     window.clear()
+
+    ui_hex.border_color = (
+        random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
     # update time
     now = time.time() - start_time

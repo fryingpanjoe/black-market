@@ -104,8 +104,9 @@ class UIHexagon(UIView):
     def __init__(self, *args, **kwargs):
         super(UIHexagon, self).__init__(*args, **kwargs)
 
-        background_color = kwargs.get('background_color', (0, 0, 0))
-        border_color = kwargs.get('border_color', (255, 255, 255))
+        self.background_color = kwargs.get('background_color', (0, 0, 0))
+        self.border_color = kwargs.get('border_color', (255, 255, 255))
+
         border_width = kwargs.get('border_width', 4.)
         rh = kwargs.get('radius_height', 50.)
         rw = kwargs.get('radius_width', 50.)
@@ -117,17 +118,21 @@ class UIHexagon(UIView):
             self.icon_image.anchor_y = self.icon_image.height
 
         self.outer_vbo = self.make_hexagon_vbo(
-            rw + border_width, rh + border_width, border_color)
-        self.inner_vbo = self.make_hexagon_vbo(rw, rh, background_color)
+            rw + border_width, rh + border_width)
+        self.inner_vbo = self.make_hexagon_vbo(rw, rh)
         self.icon_quad = self.make_quad_vbo(rw, rh)
 
     def draw(self):
         super(UIHexagon, self).draw()
 
+        glColor3ub(*self.border_color)
         self.outer_vbo.draw(GL_TRIANGLE_STRIP)
+
+        glColor3ub(*self.background_color)
         self.inner_vbo.draw(GL_TRIANGLE_STRIP)
 
         if self.icon_image:
+            glColor3ub(1, 1, 1)
             glEnable(GL_BLEND)
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             if self.icon_blit:
@@ -141,7 +146,7 @@ class UIHexagon(UIView):
             glDisable(GL_BLEND)
 
     @staticmethod
-    def make_hexagon_vbo(rw, rh, color):
+    def make_hexagon_vbo(rw, rh):
         """Make hexagon inscribed in an ellipse"""
 
         # vertex layout
@@ -153,19 +158,17 @@ class UIHexagon(UIView):
         #   4---5
 
         verts = []
-        colors = []
 
         for i in range(6):
             x = rw * math.cos(i * 2. * math.pi / 6.)
             y = rh * math.sin(i * 2. * math.pi / 6.)
             verts.extend([x, y])
-            colors.extend(color)
 
         # tri strip
         return pyglet.graphics.vertex_list_indexed(
             6,
             [3, 4, 2, 5, 1, 0],
-            ('v2f/static', verts), ('c3B/static', colors))
+            ('v2f/static', verts))
 
     @staticmethod
     def make_quad_vbo(rw, rh):
