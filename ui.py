@@ -60,11 +60,20 @@ class UIRenderer(object):
         #glPopMatrix()
 
 
+class DNDContext(object):
+
+    def __init__(self, x=0, y=0, dragged=None, hover=None):
+        self.x = x
+        self.y = y
+        self.dragged = dragged
+        self.hover = hover
+
+
 class UIView(object):
 
     def __init__(self, x=0, y=0, name=None, is_enabled=True, is_visible=True,
                  is_selected=False, can_click=True, can_toggle=False,
-                 **kwargs):
+                 can_drag=False, can_drop=False, **kwargs):
         self.uuid = uuid.uuid4()
         self.x = x
         self.y = y
@@ -75,6 +84,8 @@ class UIView(object):
         self.is_selected = is_selected
         self.can_click = can_click
         self.can_toggle = can_toggle
+        self.can_drag = can_drag
+        self.can_drop = can_drop
         self.views = []
 
     def pre_draw(self):
@@ -97,6 +108,18 @@ class UIView(object):
         if view in self.views:
             self.views.remove(view)
             self.views.insert(0, view)
+
+    def on_drag(self, dnd_context):
+        pass
+
+    def on_drag_start(self, dnd_context):
+        pass
+
+    def on_drag_stop(self, dnd_context):
+        pass
+
+    def on_drop(self, dnd_context):
+        pass
 
 
 class UIHexagon(UIView):
@@ -223,7 +246,8 @@ class UIHexagonGrid(UIView):
     def __init__(self, *args, **kwargs):
         super(UIHexagonGrid, self).__init__(*args, **kwargs)
 
-        self.tiles = kwargs.get('tiles', [[]])
+        self.width = kwargs.get('width', 1)
+        self.height = kwargs.get('height', 1)
 
     def draw(self):
         super(UIHexagonGrid, self).draw()
