@@ -23,23 +23,22 @@ platform = pyglet.window.get_platform()
 display = platform.get_default_display()
 screen = display.get_default_screen()
 
-template = pyglet.gl.Config(
+config_template = pyglet.gl.Config(
     alpha_size=8,
-    depth_size=16,
-    double_buffer=True)
-config = screen.get_best_config(template)
-
-context = config.create_context(None)
+    depth_size=24,
+    double_buffer=True,
+    sample_buffers=True,
+    samples=8)
 
 window = pyglet.window.Window(
+    config=config_template,
     width=window_width,
     height=window_height,
     caption='Black Market Prototype',
     resizable=False,
     fullscreen=False,
     visible=True,
-    vsync=False,
-    context=context)
+    vsync=False)
 
 fps_display = pyglet.clock.ClockDisplay()
 
@@ -65,9 +64,16 @@ sphere = gluNewQuadric()
 ui_root = ui.UIView()
 ui_renderer = ui.UIRenderer(ui_root)
 
+icon = pyglet.image.load('icon.png')
+print icon.get_image_data().width
+print icon.get_image_data().height
+print icon.get_image_data().format
+print icon.format
+
 ui_hex = ui.UIRegularHexagon(
     x=320, y=200, name='hexagon', background_color=(32, 32, 32),
-    border_color=(64, 64, 64), border_width=4., side_length=48.)
+    border_color=(64, 64, 64), border_width=4., side_length=48.,
+    icon_image=icon, icon_blit=False)
 
 ui_root.views.append(ui_hex)
 
@@ -111,7 +117,8 @@ def on_draw():
     # 3d drawing
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    gluPerspective(fov, float(window_width) / window_height, clip_near, clip_far)
+    gluPerspective(
+        fov, float(window_width) / window_height, clip_near, clip_far)
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
     gluLookAt(
@@ -199,8 +206,10 @@ def on_mouse_scroll(x, y, scroll_x, scroll_y):
 def on_resize(width, height):
     global window_width
     global window_height
+
     window_width = width
     window_height = height
+
     glViewport(0, 0, window_width, window_height)
 
 

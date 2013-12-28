@@ -1,8 +1,9 @@
 import uuid
 import math
 
-from pyglet.gl import gl
-from pyglet.gl import glu
+from pyglet.gl.gl import *
+from pyglet.gl.glu import *
+
 import pyglet.graphics
 
 
@@ -39,24 +40,24 @@ class UIRenderer(object):
         self.root_view = root_view
 
     def draw(self, screen_width, screen_height):
-        #gl.glViewport(0, 0, screen_width, screen_height)
+        #glViewport(0, 0, screen_width, screen_height)
 
-        #gl.glMatrixMode(gl.GL_PROJECTION)
-        #gl.glPushMatrix()
-        #gl.glLoadIdentity()
+        #glMatrixMode(GL_PROJECTION)
+        #glPushMatrix()
+        #glLoadIdentity()
 
-        gl.glMatrixMode(gl.GL_MODELVIEW)
-        gl.glPushMatrix()
-        gl.glLoadIdentity()
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
 
         self.root_view.pre_draw()
         self.root_view.draw()
         self.root_view.post_draw()
 
-        gl.glPopMatrix()
+        glPopMatrix()
 
-        #gl.glMatrixMode(gl.GL_PROJECTION)
-        #gl.glPopMatrix()
+        #glMatrixMode(GL_PROJECTION)
+        #glPopMatrix()
 
 
 class UIView(object):
@@ -77,8 +78,8 @@ class UIView(object):
         self.views = []
 
     def pre_draw(self):
-        gl.glPushMatrix()
-        gl.glTranslatef(self.x, self.y, 0.)
+        glPushMatrix()
+        glTranslatef(self.x, self.y, 0.)
 
     def draw(self):
         if not self.is_visible:
@@ -90,7 +91,7 @@ class UIView(object):
             view.post_draw()
 
     def post_draw(self):
-        gl.glPopMatrix()
+        glPopMatrix()
 
     def bring_to_front(self, view):
         if view in self.views:
@@ -109,18 +110,42 @@ class UIHexagon(UIView):
         rh = kwargs.get('radius_height', 50.)
         rw = kwargs.get('radius_width', 50.)
 
+        self.icon_blit = kwargs.get('icon_blit', False)
+        self.icon_image = kwargs.get('icon_image', None)
+        if self.icon_image:
+            self.icon_image.anchor_x = self.icon_image.width
+            self.icon_image.anchor_y = self.icon_image.height
+
         self.outer_vbo = self.make_hexagon_vbo(
             rw + border_width, rh + border_width, border_color)
         self.inner_vbo = self.make_hexagon_vbo(rw, rh, background_color)
+        self.icon_quad = self.make_quad_vbo(rw, rh)
 
     def draw(self):
         super(UIHexagon, self).draw()
 
-        self.outer_vbo.draw(pyglet.gl.GL_TRIANGLE_STRIP)
-        self.inner_vbo.draw(pyglet.gl.GL_TRIANGLE_STRIP)
+        self.outer_vbo.draw(GL_TRIANGLE_STRIP)
+        self.inner_vbo.draw(GL_TRIANGLE_STRIP)
+
+        if self.icon_image:
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            if self.icon_blit:
+                self.icon_image.blit(self.x, self.y, 0.)
+            else:
+                tex = self.icon_image.get_texture()
+                glEnable(tex.target)
+                glBindTexture(tex.target, tex.id)
+                self.icon_quad.draw(GL_TRIANGLE_STRIP)
+                glDisable(tex.target)
+            glDisable(GL_BLEND)
 
     @staticmethod
     def make_hexagon_vbo(rw, rh, color):
+        """Make hexagon inscribed in an ellipse"""
+
+        # vertex layout
+        #
         #   2---1
         #  /     \
         # 3       0
@@ -142,6 +167,40 @@ class UIHexagon(UIView):
             [3, 4, 2, 5, 1, 0],
             ('v2f/static', verts), ('c3B/static', colors))
 
+    @staticmethod
+    def make_quad_vbo(rw, rh):
+        """Make quad inscribed in an ellipse"""
+
+        # vertex layout
+        #
+        # 1---0
+        # |   |
+        # 2---3
+
+        verts = []
+        uvs = []
+
+        def step(x):
+            if x > 0.:
+                return 1.
+            else:
+                return 0.
+
+        for i in range(4):
+            x = rw * math.cos((i * 2. + 1.) * math.pi / 4.)
+            y = rh * math.sin((i * 2. + 1.) * math.pi / 4.)
+            verts.extend([x, y])
+            u = step(x)
+            v = step(y)
+            uvs.extend([u, v])
+
+        # tri strip
+        return pyglet.graphics.vertex_list_indexed(
+            4,
+            [1, 2, 0, 3],
+            ('v2f/static', verts), ('t2f/static', uvs))
+
+
 class UIRegularHexagon(UIHexagon):
 
     def __init__(self, *args, **kwargs):
@@ -161,8 +220,7 @@ class UIHexagonGrid(UIView):
     def __init__(self, *args, **kwargs):
         super(UIHexagonGrid, self).__init__(*args, **kwargs)
 
-        self.hex_size = kwargs.get('hex_size', 50.)
-        self.tile_array = kwargs.get('tile_array', [[]])
+        self.tiles = kwargs.get('tiles', [[]])
 
     def draw(self):
         super(UIHexagonGrid, self).draw()
