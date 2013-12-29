@@ -86,28 +86,43 @@ class UIView(object):
         self.can_toggle = can_toggle
         self.can_drag = can_drag
         self.can_drop = can_drop
+        self.user_data = None
         self.views = []
 
     def pre_draw(self):
+        #print 'pre_draw', self.name
+
         glPushMatrix()
         glTranslatef(self.x, self.y, 0.)
 
     def draw(self):
+        #print 'draw', self.name
+
         if not self.is_visible:
             return
 
-        for view in self.views:
+        for view in reversed(self.views):
             view.pre_draw()
             view.draw()
             view.post_draw()
 
     def post_draw(self):
+        #print 'post_draw', self.name
+
         glPopMatrix()
 
     def bring_to_front(self, view):
         if view in self.views:
             self.views.remove(view)
             self.views.insert(0, view)
+
+    def intersect(self, x, y):
+        relx = x - self.x
+        rely = y - self.y
+        for view in self.views:
+            if view.intersect(relx, rely):
+                return view
+        return None
 
     def on_drag(self, dnd_context):
         pass
@@ -131,8 +146,8 @@ class UIHexagon(UIView):
         self.border_color = kwargs.get('border_color', (255, 255, 255))
 
         border_width = kwargs.get('border_width', 4.)
-        rh = kwargs.get('radius_height', 50.)
-        rw = kwargs.get('radius_width', 50.)
+        self.radius_height = kwargs.get('radius_height', 50.)
+        self.radius_width = kwargs.get('radius_width', 50.)
 
         self.icon_blit = kwargs.get('icon_blit', False)
         self.icon_image = kwargs.get('icon_image', None)
@@ -141,9 +156,12 @@ class UIHexagon(UIView):
             self.icon_image.anchor_y = self.icon_image.height
 
         self.outer_vbo = self.make_hexagon_vbo(
-            rw + border_width, rh + border_width)
-        self.inner_vbo = self.make_hexagon_vbo(rw, rh)
-        self.icon_quad = self.make_quad_vbo(rw, rh)
+            self.radius_width + border_width,
+            self.radius_height + border_width)
+        self.inner_vbo = self.make_hexagon_vbo(
+            self.radius_width, self.radius_height)
+        self.icon_quad = self.make_quad_vbo(
+            self.radius_width, self.radius_height)
 
     def draw(self):
         super(UIHexagon, self).draw()
@@ -155,7 +173,7 @@ class UIHexagon(UIView):
         self.inner_vbo.draw(GL_TRIANGLE_STRIP)
 
         if self.icon_image:
-            glColor3ub(1, 1, 1)
+            glColor3f(1, 1, 1)
             glEnable(GL_BLEND)
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             if self.icon_blit:
@@ -167,6 +185,18 @@ class UIHexagon(UIView):
                 self.icon_quad.draw(GL_TRIANGLE_STRIP)
                 glDisable(tex.target)
             glDisable(GL_BLEND)
+
+    def intersect(self, x, y):
+        dx = abs(x - self.x)
+        dy = abs(y - self.y)
+
+        rx = self.radius_height
+        ry = self.radius_width
+
+        if dx <= rx and dy <= ry and (rx * ry - 0.5 * rx * dx - ry * dy) >= 0:
+            return self
+        else:
+            return None
 
     @staticmethod
     def make_hexagon_vbo(rw, rh):
@@ -232,13 +262,36 @@ class UIRegularHexagon(UIHexagon):
     def __init__(self, *args, **kwargs):
         # compute radii from side length
         side_length = kwargs.get('side_length', 50.)
-        height = 2. * math.sin(2. * math.pi / 6.) * side_length
-        width = side_length + 2 * math.cos(2. * math.pi / 6.) * side_length
+        radius_width = self.get_radius_width_for_side_length(side_length)
+        radius_height = self.get_radius_height_for_side_length(side_length)
 
-        kwargs['radius_height'] = height / 2.
-        kwargs['radius_width'] = width / 2.
+        self.width = radius_width
+        self.height = radius_height * math.sin(2. * math.pi / 6.)
+
+        kwargs['radius_width'] = radius_width
+        kwargs['radius_height'] = radius_height
 
         super(UIRegularHexagon, self).__init__(*args, **kwargs)
+
+    @staticmethod
+    def get_radius_width_for_side_length(side_length):
+        return 0.5 * side_length + math.cos(2. * math.pi / 6.) * side_length
+
+    @staticmethod
+    def get_radius_height_for_side_length(side_length):
+        return math.sin(2. * math.pi / 6.) * side_length
+
+    @staticmethod
+    def get_width_for_side_length(side_length):
+        return (
+            2. *
+            UIRegularHexagon.get_radius_width_for_side_length(side_length))
+
+    @staticmethod
+    def get_height_for_side_length(side_length):
+        return (
+            2. * math.sin(2. * math.pi / 6.) *
+            UIRegularHexagon.get_radius_height_for_side_length(side_length))
 
 
 class UIHexagonGrid(UIView):
