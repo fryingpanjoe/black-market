@@ -50,8 +50,9 @@ class Hexagon(object):
         dx = abs(x - self.x)
         dy = abs(y - self.y)
         w = self.half_width
+        dw = self.half_width - self.half_top_width
         h = self.half_height
-        return dx < w and dy < h and dy < (h * (1 - dx / w))
+        return dx < w and dy < h and dy < h * (w - dx) / dw
 
     def get_vertices_ccw(self, border=0):
         # vertex layout
