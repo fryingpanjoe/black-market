@@ -38,23 +38,28 @@ random.seed(1337)
 start_time = time.time()
 last_update = 0
 
-
 cargo_tiles = [
-    [0, 0, 0, 1, 0, 0,],
-    [1, 1, 0, 1, 1, 0,],
-    [1, 1, 1, 1, 1, 1,],
-    [0, 0, 1, 1, 1, 0,],
+    (-2,  2),
+    (-2,  1), (-1,  1), (1,  1),
+    (-1,  0), ( 0,  0), (1,  0), (2,  0),
+              ( 0, -1), (1, -1), (2, -1),
+                        (1, -2), (2, -2), (3, -2),
 ]
 
 resource_tiles_1 = [
-    [2, 2, 2,],
-    [0, 0, 2,],
+    (-1, 1), (0, 1), (1, 0), (1, -1),
 ]
 
 resource_tiles_2 = [
-    [2, 2,],
-    [2, 2,],
+    (-1, 1), (0, 1), (0, 0), (1, 0),
 ]
+
+all_resource_tiles = [
+    resource_tiles_1,
+    resource_tiles_2,
+]
+
+resource_tiles = random.choice(all_resource_tiles)
 
 
 ui_root = ui.UIView(name='root')
@@ -71,12 +76,12 @@ ui_root.views.append(ui_resource_view)
 ui_root.views.append(ui_cargo_view)
 
 
-BACKGROUND_COLORS = [(32, 64, 32), (64, 32, 32), (32, 32, 64)]
+BACKGROUND_COLORS = [(32, 64, 32), (224, 224, 64), (32, 32, 64)]
 BORDER_COLOR = (64, 64, 64)
 HEX_SIDE_LENGTH = 48.
 
 
-def make_hex(tile, x, y):
+def make_hex(tile, x, y, tx, ty):
     if tile == 0:
         return None
     else:
@@ -85,96 +90,39 @@ def make_hex(tile, x, y):
             background_color=BACKGROUND_COLORS[tile - 1],
             border_color=BORDER_COLOR,
             border_width=4.,
-            hexagon=hexagons.Hexagon.from_side_length(HEX_SIDE_LENGTH))
+            hexagon=hexagons.Hexagon.from_side_length(HEX_SIDE_LENGTH),
+            user_data=(tx, ty))
 
 
-def make_hexes(tiles):
-    hexes = []
-    x = 0.
-    y = 0.
+def make_hexes(tiles, tile_type):
     width = hexagons.side_length_to_width(HEX_SIDE_LENGTH)
     height = hexagons.side_length_to_height(HEX_SIDE_LENGTH)
     xstep = 0.5 * (width + HEX_SIDE_LENGTH)
     ystep = 0.5 * height
-    ystart = 0.
-    i, j = 0, 0
-    for row in tiles:
-        x = 0
-        y = ystart
-        for tile in row:
-            hexagon = make_hex(tile, x, y)
-            if hexagon:
-                hexagon.user_data = (i, j)
-                hexes.append(hexagon)
-            x += xstep
-            y -= ystep
-            ystep = -ystep
-            i += 1
-        ystart -= height
-        ystep = abs(ystep)
-        i, j = 0, j + 1
+
+    hexes = []
+
+    for (tx, ty) in tiles:
+        x = tx * xstep
+        y = ty * height + tx * ystep
+        hexes.append(make_hex(tile_type, x, y, tx, ty))
+
     return hexes
 
 
-def rotated(arr):
-    return zip(*arr[::-1])
-
-
-def get_offset(tiles):
-    xoff, yoff = len(tiles[0]), len(tiles)
-    x, y = 0, 0
-    for row in tiles:
-        for tile in row:
-            if tile != 0:
-                if x < xoff:
-                    xoff, yoff = x, y
-                break
-            x += 1
-        y += 1
-        x = 0
-    return xoff, yoff
-
-
-def get_tile(tiles, x, y):
-    if y < len(tiles) and x < len(tiles[y]):
-        return tiles[y][x]
-    else:
-        return 0
+def rotated(tiles):
+    return [hexagons.rot_qr((tx, ty)) for (tx, ty) in tiles]
 
 
 def can_place(cargo, res, x, y):
-    xoff, yoff = get_offset(res)
+    return all((tx + x, ty + y) in cargo for (tx, ty) in res)
 
-    x -= xoff
-    y -= yoff
-
-    if x < 0 or y < 0:
-        return False
-
-    #if len(res) + y > len(cargo) or len(res[0]) + x > len(cargo[0]):
-    #    return False
-
-    for i in range(len(res)):
-        #print res[i]
-        #print cargo[i+y][x:x+len(res[i])]
-        for j in range(len(res[i])):
-            if res[i][j] != 0 and get_tile(cargo, j + x, i + y) != 1:
-                return False
-        #print ''
-
-    return True
 
 def try_place(cargo, res, x, y):
     if can_place(cargo, res, x, y):
-        xoff, yoff = get_offset(res)
-
-        x -= xoff
-        y -= yoff
-
-        for i in range(len(res)):
-            for j in range(len(res[i])):
-                if res[i][j] != 0:
-                    cargo[i + y][j + x] = res[i][j]
+        return True
+    else:
+        return False
 
 
 @window.event
@@ -185,11 +133,11 @@ def on_activate():
     glClearColor(0., 0., 0., 0.)
     glClearDepth(1.)
 
-    ui_cargo_view.views = make_hexes(cargo_tiles)
-    ui_cargo_view.x = 100
-    ui_cargo_view.y = 600
+    ui_cargo_view.views = make_hexes(cargo_tiles, 1)
+    ui_cargo_view.x = window_width // 2
+    ui_cargo_view.y = window_height // 2
 
-    ui_resource_view.views.extend(make_hexes(resource_tiles_1))
+    ui_resource_view.views.extend(make_hexes(resource_tiles, 2))
 
 
 @window.event
@@ -280,8 +228,8 @@ def on_mouse_motion(x, y, dx, dy):
     HOVER_TILE = hexa
 
     if hexa:
-        x, y = hexa.user_data
-        if can_place(cargo_tiles, resource_tiles_1, x, y):
+        tx, ty = hexa.user_data
+        if can_place(cargo_tiles, resource_tiles, tx, ty):
             hexa.border_color = VALID_TILE_BORDER_COLOR
         else:
             hexa.border_color = INVALID_TILE_BORDER_COLOR
@@ -289,11 +237,21 @@ def on_mouse_motion(x, y, dx, dy):
 
 @window.event
 def on_mouse_press(x, y, button, modifiers):
+    global resource_tiles
+
     if button == pyglet.window.mouse.LEFT:
         if HOVER_TILE:
             tx, ty = HOVER_TILE.user_data
-            try_place(cargo_tiles, resource_tiles_1, tx, ty)
-            ui_cargo_view.views = make_hexes(cargo_tiles)
+            if try_place(cargo_tiles, resource_tiles, tx, ty):
+                ui_cargo_view.views = make_hexes(cargo_tiles, 1)
+
+                resource_tiles = random.choice(all_resource_tiles)
+                ui_resource_view.views = make_hexes(resource_tiles, 2)
+
+    elif button == pyglet.window.mouse.RIGHT:
+        resource_tiles = rotated(resource_tiles)
+        ui_resource_view.views = make_hexes(resource_tiles, 2)
+
 
 
 @window.event
