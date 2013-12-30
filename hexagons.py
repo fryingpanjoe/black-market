@@ -75,3 +75,19 @@ class Hexagon(object):
             (-tw, -hh),
             ( tw, -hh),
         ]
+
+
+def qr_to_xyz((q, r)):
+    return (q, -q - r, r)
+
+
+def xyz_to_qr((x, y, z)):
+    return (x, z)
+
+
+def rot_qr((q, r)):
+    return (q + r, -q)
+
+
+def rot_xyz((x, y, z)):
+    return (-z, -x, -y)
