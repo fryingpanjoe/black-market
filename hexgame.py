@@ -9,6 +9,7 @@ from pyglet.gl.glu import *
 #from pyglet.gl.gl.glext_arb import *
 
 import ui
+import hexagons
 
 window_width = 1024
 window_height = 768
@@ -84,15 +85,15 @@ def make_hex(tile, x, y):
             background_color=BACKGROUND_COLORS[tile - 1],
             border_color=BORDER_COLOR,
             border_width=4.,
-            side_length=HEX_SIDE_LENGTH)
+            hexagon=hexagons.Hexagon.from_side_length(HEX_SIDE_LENGTH))
 
 
 def make_hexes(tiles):
     hexes = []
     x = 0.
     y = 0.
-    width = ui.UIRegularHexagon.get_width_for_side_length(HEX_SIDE_LENGTH)
-    height = ui.UIRegularHexagon.get_height_for_side_length(HEX_SIDE_LENGTH)
+    width = hexagons.side_length_to_width(HEX_SIDE_LENGTH)
+    height = hexagons.side_length_to_height(HEX_SIDE_LENGTH)
     xstep = 0.5 * (width + HEX_SIDE_LENGTH)
     ystep = 0.5 * height
     ystart = 0.

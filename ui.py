@@ -1,10 +1,13 @@
 import uuid
 import math
+import itertools
 
 from pyglet.gl.gl import *
 from pyglet.gl.glu import *
 
 import pyglet.graphics
+
+import hexagons
 
 
 class UIEventHandler(object):
@@ -144,24 +147,18 @@ class UIHexagon(UIView):
 
         self.background_color = kwargs.get('background_color', (0, 0, 0))
         self.border_color = kwargs.get('border_color', (255, 255, 255))
-
-        border_width = kwargs.get('border_width', 4.)
-        self.radius_height = kwargs.get('radius_height', 50.)
-        self.radius_width = kwargs.get('radius_width', 50.)
-
+        self.border_width = kwargs.get('border_width', 4.)
+        self.hexagon = kwargs['hexagon']
         self.icon_blit = kwargs.get('icon_blit', False)
         self.icon_image = kwargs.get('icon_image', None)
+
         if self.icon_image:
             self.icon_image.anchor_x = self.icon_image.width
             self.icon_image.anchor_y = self.icon_image.height
 
-        self.outer_vbo = self.make_hexagon_vbo(
-            self.radius_width + border_width,
-            self.radius_height + border_width)
-        self.inner_vbo = self.make_hexagon_vbo(
-            self.radius_width, self.radius_height)
-        self.icon_quad = self.make_quad_vbo(
-            self.radius_width, self.radius_height)
+        self.outer_vbo = self.make_hexagon_vbo(self.hexagon, 0.)
+        self.inner_vbo = self.make_hexagon_vbo(self.hexagon, -self.border_width)
+        self.icon_quad = self.make_quad_vbo(self.hexagon)
 
     def draw(self):
         super(UIHexagon, self).draw()
@@ -187,19 +184,24 @@ class UIHexagon(UIView):
             glDisable(GL_BLEND)
 
     def intersect(self, x, y):
-        dx = abs(x - self.x)
-        dy = abs(y - self.y)
+        self.hexagon.x = self.x
+        self.hexagon.y = self.y
 
-        rx = self.radius_height
-        ry = self.radius_width
-
-        if dx <= rx and dy <= ry and (rx * ry - 0.5 * rx * dx - ry * dy) >= 0:
+        if self.hexagon.intersect_point(x, y):
             return self
         else:
             return None
 
+    @property
+    def width(self):
+        return self.hexagon.half_width * 2.
+
+    @property
+    def height(self):
+        return self.hexagon.height * 2.
+
     @staticmethod
-    def make_hexagon_vbo(rw, rh):
+    def make_hexagon_vbo(hexagon, border):
         """Make hexagon inscribed in an ellipse"""
 
         # vertex layout
@@ -210,12 +212,7 @@ class UIHexagon(UIView):
         #  \     /
         #   4---5
 
-        verts = []
-
-        for i in range(6):
-            x = rw * math.cos(i * 2. * math.pi / 6.)
-            y = rh * math.sin(i * 2. * math.pi / 6.)
-            verts.extend([x, y])
+        verts = list(itertools.chain(*hexagon.get_vertices_ccw(border=border)))
 
         # tri strip
         return pyglet.graphics.vertex_list_indexed(
@@ -224,7 +221,7 @@ class UIHexagon(UIView):
             ('v2f/static', verts))
 
     @staticmethod
-    def make_quad_vbo(rw, rh):
+    def make_quad_vbo(hexagon):
         """Make quad inscribed in an ellipse"""
 
         # vertex layout
@@ -233,22 +230,15 @@ class UIHexagon(UIView):
         # |   |
         # 2---3
 
-        verts = []
-        uvs = []
-
-        def step(x):
-            if x > 0.:
-                return 1.
-            else:
-                return 0.
-
-        for i in range(4):
-            x = rw * math.cos((i * 2. + 1.) * math.pi / 4.)
-            y = rh * math.sin((i * 2. + 1.) * math.pi / 4.)
-            verts.extend([x, y])
-            u = step(x)
-            v = step(y)
-            uvs.extend([u, v])
+        verts = hexagon.get_vertices_ccw()
+        verts = [verts[1], verts[2], verts[4], verts[5]]
+        verts = list(itertools.chain(*verts))
+        uvs = [
+            1, 1,
+            0, 1,
+            0, 0,
+            1, 0,
+        ]
 
         # tri strip
         return pyglet.graphics.vertex_list_indexed(
@@ -260,38 +250,11 @@ class UIHexagon(UIView):
 class UIRegularHexagon(UIHexagon):
 
     def __init__(self, *args, **kwargs):
-        # compute radii from side length
         side_length = kwargs.get('side_length', 50.)
-        radius_width = self.get_radius_width_for_side_length(side_length)
-        radius_height = self.get_radius_height_for_side_length(side_length)
 
-        self.width = radius_width
-        self.height = radius_height * math.sin(2. * math.pi / 6.)
-
-        kwargs['radius_width'] = radius_width
-        kwargs['radius_height'] = radius_height
+        kwargs['hexagon'] = hexagons.Hexagon.from_side_length(side_length)
 
         super(UIRegularHexagon, self).__init__(*args, **kwargs)
-
-    @staticmethod
-    def get_radius_width_for_side_length(side_length):
-        return 0.5 * side_length + math.cos(2. * math.pi / 6.) * side_length
-
-    @staticmethod
-    def get_radius_height_for_side_length(side_length):
-        return math.sin(2. * math.pi / 6.) * side_length
-
-    @staticmethod
-    def get_width_for_side_length(side_length):
-        return (
-            2. *
-            UIRegularHexagon.get_radius_width_for_side_length(side_length))
-
-    @staticmethod
-    def get_height_for_side_length(side_length):
-        return (
-            2. * math.sin(2. * math.pi / 6.) *
-            UIRegularHexagon.get_radius_height_for_side_length(side_length))
 
 
 class UIHexagonGrid(UIView):
