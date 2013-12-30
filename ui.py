@@ -76,7 +76,7 @@ class UIView(object):
 
     def __init__(self, x=0, y=0, name=None, is_enabled=True, is_visible=True,
                  is_selected=False, can_click=True, can_toggle=False,
-                 can_drag=False, can_drop=False, **kwargs):
+                 can_drag=False, can_drop=False, user_data=None, **kwargs):
         self.uuid = uuid.uuid4()
         self.x = x
         self.y = y
@@ -89,7 +89,7 @@ class UIView(object):
         self.can_toggle = can_toggle
         self.can_drag = can_drag
         self.can_drop = can_drop
-        self.user_data = None
+        self.user_data = user_data
         self.views = []
 
     def pre_draw(self):
