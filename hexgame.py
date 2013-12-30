@@ -68,10 +68,6 @@ ui_renderer = ui.UIRenderer(ui_root)
 ui_cargo_view = ui.UIView(name='cargo_view')
 ui_resource_view = ui.UIView(name='resource_view')
 
-#ui_hex = ui.UIRegularHexagon(
-#    x=320, y=200, name='hexagon', background_color=(32, 32, 32),
-#    border_color=(64, 64, 64), border_width=4., side_length=48.)
-
 ui_root.views.append(ui_resource_view)
 ui_root.views.append(ui_cargo_view)
 
@@ -81,7 +77,7 @@ BORDER_COLOR = (64, 64, 64)
 HEX_SIDE_LENGTH = 48.
 
 
-def make_hex(tile, x, y, tx, ty):
+def make_hex(tile, x, y, tx, ty, side_length):
     if tile == 0:
         return None
     else:
@@ -90,14 +86,14 @@ def make_hex(tile, x, y, tx, ty):
             background_color=BACKGROUND_COLORS[tile - 1],
             border_color=BORDER_COLOR,
             border_width=4.,
-            hexagon=hexagons.Hexagon.from_side_length(HEX_SIDE_LENGTH),
+            side_length=side_length,
             user_data=(tx, ty))
 
 
-def make_hexes(tiles, tile_type):
-    width = hexagons.side_length_to_width(HEX_SIDE_LENGTH)
-    height = hexagons.side_length_to_height(HEX_SIDE_LENGTH)
-    xstep = 0.5 * (width + HEX_SIDE_LENGTH)
+def make_hexes(tiles, tile_type, side_length):
+    width = hexagons.side_length_to_width(side_length)
+    height = hexagons.side_length_to_height(side_length)
+    xstep = 0.5 * (width + side_length)
     ystep = 0.5 * height
 
     hexes = []
@@ -105,7 +101,7 @@ def make_hexes(tiles, tile_type):
     for (tx, ty) in tiles:
         x = tx * xstep
         y = ty * height + tx * ystep
-        hexes.append(make_hex(tile_type, x, y, tx, ty))
+        hexes.append(make_hex(tile_type, x, y, tx, ty, side_length))
 
     return hexes
 
@@ -133,11 +129,12 @@ def on_activate():
     glClearColor(0., 0., 0., 0.)
     glClearDepth(1.)
 
-    ui_cargo_view.views = make_hexes(cargo_tiles, 1)
+    ui_cargo_view.views = make_hexes(cargo_tiles, 1, HEX_SIDE_LENGTH)
     ui_cargo_view.x = window_width // 2
     ui_cargo_view.y = window_height // 2
 
-    ui_resource_view.views.extend(make_hexes(resource_tiles, 2))
+    ui_resource_view.views = make_hexes(
+        resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
 
 
 @window.event
@@ -243,14 +240,17 @@ def on_mouse_press(x, y, button, modifiers):
         if HOVER_TILE:
             tx, ty = HOVER_TILE.user_data
             if try_place(cargo_tiles, resource_tiles, tx, ty):
-                ui_cargo_view.views = make_hexes(cargo_tiles, 1)
+                ui_cargo_view.views = make_hexes(
+                    cargo_tiles, 1, HEX_SIDE_LENGTH)
 
                 resource_tiles = random.choice(all_resource_tiles)
-                ui_resource_view.views = make_hexes(resource_tiles, 2)
+                ui_resource_view.views = make_hexes(
+                    resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
 
     elif button == pyglet.window.mouse.RIGHT:
         resource_tiles = rotated(resource_tiles)
-        ui_resource_view.views = make_hexes(resource_tiles, 2)
+        ui_resource_view.views = make_hexes(
+            resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
 
 
 
