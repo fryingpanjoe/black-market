@@ -74,9 +74,13 @@ ui_root.views.append(ui_resource_view)
 ui_root.views.append(ui_cargo_view)
 
 
+VALID_TILE_BORDER_COLOR = (64, 255, 64)
+INVALID_TILE_BORDER_COLOR = (255, 64, 64)
 BACKGROUND_COLORS = [(32, 128, 32), (128, 128, 32), (128, 32, 32)]
 BORDER_COLOR = (64, 64, 64)
 HEX_SIDE_LENGTH = 48.
+MOUSE_X = 0
+MOUSE_Y = 0
 
 
 def make_hex(tile, x, y, tx, ty, side_length):
@@ -139,8 +143,7 @@ def on_activate():
 
     update_cargo_view()
 
-    ui_resource_view.views = make_hexes(
-        resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
+    ui_resource_view.views = make_hexes(resource_tiles, 2, HEX_SIDE_LENGTH)
 
 
 @window.event
@@ -192,62 +195,41 @@ def on_key_release(symbol, modifiers):
 
 @window.event
 def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
-    pass
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
 
 
 @window.event
 def on_mouse_enter(x, y):
-    pass
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
 
 
 @window.event
 def on_mouse_leave(x, y):
-    pass
-
-
-HOVER_TILE = None
-HOVER_TILE_PREV_COLOR = None
-HOVER_TILE_BORDER_COLOR = (128, 128, 128)
-VALID_TILE_BORDER_COLOR = (64, 255, 64)
-INVALID_TILE_BORDER_COLOR = (255, 64, 64)
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
 
 
 @window.event
 def on_mouse_motion(x, y, dx, dy):
-    global HOVER_TILE
-    global HOVER_TILE_PREV_COLOR
-
-    ui_resource_view.x = x
-    ui_resource_view.y = y
-
-    hexa = ui_cargo_view.intersect(x, y)
-
-    if HOVER_TILE != hexa:
-        if HOVER_TILE:
-            HOVER_TILE.border_color = HOVER_TILE_PREV_COLOR
-        if hexa:
-            ui_cargo_view.bring_to_front(hexa)
-            HOVER_TILE_PREV_COLOR = hexa.border_color
-            hexa.border_color = HOVER_TILE_BORDER_COLOR
-    HOVER_TILE = hexa
-
-    if hexa:
-        tx, ty = hexa.user_data
-        if can_place(free_cargo_tiles, resource_tiles, tx, ty):
-            hexa.border_color = VALID_TILE_BORDER_COLOR
-        else:
-            hexa.border_color = INVALID_TILE_BORDER_COLOR
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
 
 
 @window.event
 def on_mouse_press(x, y, button, modifiers):
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
+
     global resource_tiles
     global free_cargo_tiles
     global used_cargo_tiles
 
     if button == pyglet.window.mouse.LEFT:
-        if HOVER_TILE:
-            tx, ty = HOVER_TILE.user_data
+        hexa = ui_cargo_view.intersect(MOUSE_X, MOUSE_Y)
+        if hexa:
+            tx, ty = hexa.user_data
             if can_place(free_cargo_tiles, resource_tiles, tx, ty):
                 moved_resource_tiles = moved(resource_tiles, tx, ty)
 
@@ -262,41 +244,51 @@ def on_mouse_press(x, y, button, modifiers):
 
                 resource_tiles = random.choice(all_resource_tiles)
                 ui_resource_view.views = make_hexes(
-                    resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
+                    resource_tiles, 2, HEX_SIDE_LENGTH)
 
     elif button == pyglet.window.mouse.RIGHT:
         resource_tiles = rotated(resource_tiles)
         ui_resource_view.views = make_hexes(
-            resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
+            resource_tiles, 2, HEX_SIDE_LENGTH)
 
 
 @window.event
 def on_mouse_release(x, y, button, modifiers):
-    pass
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
 
 
 @window.event
 def on_mouse_scroll(x, y, scroll_x, scroll_y):
-    pass
+    global MOUSE_X, MOUSE_Y
+    MOUSE_X, MOUSE_Y = x, y
 
 
 @window.event
 def on_resize(width, height):
-    global window_width
-    global window_height
-
-    window_width = width
-    window_height = height
+    global window_width, window_height
+    window_width, window_height = width, height
 
     glViewport(0, 0, window_width, window_height)
 
 
 def update(frame_time):
-    #if ui_hex.intersect(MX, MY):
-    #    ui_hex.border_color = (64, 64, 255)
-    #else:
-    #    ui_hex.border_color = (255, 64, 64)
-    pass
+    ui_resource_view.x = MOUSE_X
+    ui_resource_view.y = MOUSE_Y
+
+    hexa = ui_cargo_view.intersect(MOUSE_X, MOUSE_Y)
+
+    valid_placement = False
+
+    if hexa:
+        tx, ty = hexa.user_data
+        valid_placement = can_place(free_cargo_tiles, resource_tiles, tx, ty)
+
+    for view in ui_resource_view.views:
+        if valid_placement:
+            view.border_color = VALID_TILE_BORDER_COLOR
+        else:
+            view.border_color = INVALID_TILE_BORDER_COLOR
 
 
 pyglet.clock.schedule_interval(update, 1. / 60.)
