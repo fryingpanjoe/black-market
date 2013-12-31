@@ -38,7 +38,9 @@ random.seed(1337)
 start_time = time.time()
 last_update = 0
 
-cargo_tiles = [
+used_cargo_tiles = []
+
+free_cargo_tiles = [
     (-2,  2),
     (-2,  1), (-1,  1), (1,  1),
     (-1,  0), ( 0,  0), (1,  0), (2,  0),
@@ -72,7 +74,7 @@ ui_root.views.append(ui_resource_view)
 ui_root.views.append(ui_cargo_view)
 
 
-BACKGROUND_COLORS = [(32, 64, 32), (224, 224, 64), (32, 32, 64)]
+BACKGROUND_COLORS = [(32, 128, 32), (128, 128, 32), (128, 32, 32)]
 BORDER_COLOR = (64, 64, 64)
 HEX_SIDE_LENGTH = 48.
 
@@ -110,15 +112,18 @@ def rotated(tiles):
     return [hexagons.rot_qr((tx, ty)) for (tx, ty) in tiles]
 
 
+def moved(tiles, x, y):
+    return [(tx + x, ty + y) for (tx, ty) in tiles]
+
+
 def can_place(cargo, res, x, y):
-    return all((tx + x, ty + y) in cargo for (tx, ty) in res)
+    return all(tile in cargo for tile in moved(res, x, y))
 
 
-def try_place(cargo, res, x, y):
-    if can_place(cargo, res, x, y):
-        return True
-    else:
-        return False
+def update_cargo_view():
+    ui_cargo_view.views = make_hexes(free_cargo_tiles, 1, HEX_SIDE_LENGTH)
+    ui_cargo_view.views.extend(
+        make_hexes(used_cargo_tiles, 3, HEX_SIDE_LENGTH))
 
 
 @window.event
@@ -129,9 +134,10 @@ def on_activate():
     glClearColor(0., 0., 0., 0.)
     glClearDepth(1.)
 
-    ui_cargo_view.views = make_hexes(cargo_tiles, 1, HEX_SIDE_LENGTH)
     ui_cargo_view.x = window_width // 2
     ui_cargo_view.y = window_height // 2
+
+    update_cargo_view()
 
     ui_resource_view.views = make_hexes(
         resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
@@ -163,7 +169,7 @@ def on_draw():
 
     #for view in ui_cargo_view.views:
     #    x, y = view.user_data
-    #    if can_place(cargo_tiles, resource_tiles_1, x, y):
+    #    if can_place(free_cargo_tiles, resource_tiles_1, x, y):
     #        view.background_color = (64, 64, 255)
     #    else:
     #        view.background_color = (255, 64, 64)
@@ -205,6 +211,7 @@ HOVER_TILE_BORDER_COLOR = (128, 128, 128)
 VALID_TILE_BORDER_COLOR = (64, 255, 64)
 INVALID_TILE_BORDER_COLOR = (255, 64, 64)
 
+
 @window.event
 def on_mouse_motion(x, y, dx, dy):
     global HOVER_TILE
@@ -226,7 +233,7 @@ def on_mouse_motion(x, y, dx, dy):
 
     if hexa:
         tx, ty = hexa.user_data
-        if can_place(cargo_tiles, resource_tiles, tx, ty):
+        if can_place(free_cargo_tiles, resource_tiles, tx, ty):
             hexa.border_color = VALID_TILE_BORDER_COLOR
         else:
             hexa.border_color = INVALID_TILE_BORDER_COLOR
@@ -235,13 +242,23 @@ def on_mouse_motion(x, y, dx, dy):
 @window.event
 def on_mouse_press(x, y, button, modifiers):
     global resource_tiles
+    global free_cargo_tiles
+    global used_cargo_tiles
 
     if button == pyglet.window.mouse.LEFT:
         if HOVER_TILE:
             tx, ty = HOVER_TILE.user_data
-            if try_place(cargo_tiles, resource_tiles, tx, ty):
-                ui_cargo_view.views = make_hexes(
-                    cargo_tiles, 1, HEX_SIDE_LENGTH)
+            if can_place(free_cargo_tiles, resource_tiles, tx, ty):
+                moved_resource_tiles = moved(resource_tiles, tx, ty)
+
+                used_cargo_tiles.extend(moved_resource_tiles)
+
+                free_cargo_tiles = [
+                    tile
+                    for tile in free_cargo_tiles
+                    if tile not in moved_resource_tiles]
+
+                update_cargo_view()
 
                 resource_tiles = random.choice(all_resource_tiles)
                 ui_resource_view.views = make_hexes(
@@ -251,7 +268,6 @@ def on_mouse_press(x, y, button, modifiers):
         resource_tiles = rotated(resource_tiles)
         ui_resource_view.views = make_hexes(
             resource_tiles, 2, HEX_SIDE_LENGTH / 2.)
-
 
 
 @window.event
