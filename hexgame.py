@@ -31,6 +31,8 @@ window = pyglet.window.Window(
     visible=True,
     vsync=False)
 
+window.set_mouse_visible(False)
+
 fps_display = pyglet.clock.ClockDisplay()
 
 random.seed(1337)
