@@ -1,0 +1,48 @@
+package bm_proto;
+
+enum MessageType {
+    FAILED = 0;
+    OK = 1;
+    USER_LOGIN = 100;
+    CHAT_MESSAGE = 101;
+    PRIVATE_CHAT_MESSAGE = 102;
+    SERVER_CHAT_MESSAGE = 103;
+}
+
+message Envelope {
+    optional uint32 client_id = 1;
+    optional uint32 message_id = 2;
+    optional MessageType message_type = 3;
+    repeated bytes payload = 4;
+}
+
+message Vec3f {
+    optional float x = 1 [default = 0.0];
+    optional float y = 2 [default = 0.0];
+    optional float z = 3 [default = 0.0];
+}
+
+message Position {
+    optional uint32 galaxy_id = 1;
+    optional uint32 system_id = 2;
+    optional uint32 destination_id = 3;
+    optional Vec3f local_position = 4;
+}
+
+message LoginRequest {
+    optional string username = 1;
+    optional string password = 2;
+}
+
+message ChatMessage {
+    optional string text = 1;
+}
+
+message PrivateChatMessage {
+    optional string text = 1;
+    optional string username = 2;
+}
+
+message ServerChatMessage {
+    optional string text = 1;
+}
