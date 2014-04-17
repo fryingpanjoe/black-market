@@ -1,205 +1,100 @@
-import socket
-import threading
-import inspect
 import logging
-import functools
-import json
-import SocketServer
+import network
 
 LOG = logging.getLogger(__name__)
-
-MAX_REQUEST_SIZE = 1024
-RPC_HANDLERS = {}
-
-
-def rpc(func):
-    global RPC_HANDLERS
-
-    handler = RPCHandler.from_func(func)
-    LOG.info('registered RPC %s', handler.name)
-    RPC_HANDLERS[handler.name] = handler
-
-    return func
 
 
 class RPCError(RuntimeError):
     pass
 
 
-class RPCHandler(object):
-
-    @classmethod
-    def from_func(cls, func):
-        assert inspect.isroutine(func), 'RPC handler must be a routine'
-
-        fspec = inspect.getargspec(func)
-
-        kwargs = {}
-        if fspec.defaults:
-            args = fspec.args[:-len(fspec.defaults)]
-            for arg, defval in \
-                    zip(reversed(fspec.args), reversed(fspec.defaults)):
-                kwargs[arg] = defval
-        else:
-            args = fspec.args
-
-        return RPCHandler(func, func.__name__, args, kwargs)
-
-    def __init__(self, func, name, args, kwargs):
-        self.func = func
-        self.name = name
-        self.args = args
-        self.kwargs = kwargs
-
-
-class RPCDemux(SocketServer.BaseRequestHandler):
-
-    def handle(self):
-        global RPC_HANDLERS
-
-        try:
-            # read request call data
-            request_data = self.request.recv(MAX_REQUEST_SIZE)
-
-            # parse request
-            call = json.loads(request_data)
-
-            # handle request
-            result = self.invoke_handler(
-                RPC_HANDLERS[call['name']], call['args'])
-
-            # build response
-            response = {'status': 'ok'}
-            if result:
-                response['result'] = result
-        except Exception, exc:
-            # something went wrong
-            LOG.exception('rpc failed')
-            response = {'status': 'failed', 'reason': str(exc)}
-        finally:
-            # send response
-            self.request.sendall(json.dumps(response))
-
-    @staticmethod
-    def invoke_handler(handler, args):
-        # build function call arguments
-        kwargs = handler.kwargs.copy()
-        for arg, value in args.iteritems():
-            # make sure args exists
-            if arg not in handler.args:
-                raise RPCError('invalid arg "{}"'.format(arg))
-            kwargs[arg] = value
-
-        # check missing args
-        for arg in handler.args:
-            if arg not in kwargs:
-                raise RPCError('missing arg "{}"'.format(arg))
-
-        # handle request
-        LOG.debug('calling %s with %r', handler.name, kwargs)
-        return handler.func(**kwargs)
-
-
-class RPCService(SocketServer.BaseRequestHandler):
-
-    MAX_REQUEST_SIZE = 1024
-    RPC_HANDLERS = {}
-
-    def expose(func):
-        handler = RPCHandler.from_func(func)
-        LOG.info('registered RPC %s', handler.name)
-        RPC_HANDLERS[handler.name] = handler
-
-    def handle(self):
-        try:
-            # read request call data
-            request_data = self.request.recv(MAX_REQUEST_SIZE)
-
-            # parse request
-            call = json.loads(request_data)
-
-            # handle request
-            result = self.invoke_handler(
-                RPC_HANDLERS[call['name']], call['args'])
-
-            # build response
-            response = {'status': 'ok'}
-            if result:
-                response['result'] = result
-        except Exception, exc:
-            # something went wrong
-            LOG.exception('rpc failed')
-            response = {'status': 'failed', 'reason': str(exc)}
-        finally:
-            # send response
-            self.request.sendall(json.dumps(response))
-
-    @staticmethod
-    def invoke_handler(handler, args):
-        # build function call arguments
-        kwargs = handler.kwargs.copy()
-        for arg, value in args.iteritems():
-            # make sure args exists
-            if arg not in handler.args:
-                raise RPCError('invalid arg "{}"'.format(arg))
-            kwargs[arg] = value
-
-        # check missing args
-        for arg in handler.args:
-            if arg not in kwargs:
-                raise RPCError('missing arg "{}"'.format(arg))
-
-        # handle request
-        LOG.debug('calling %s with %r', handler.name, kwargs)
-        return handler.func(**kwargs)
-
-
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class RPCHandlerFailed(RPCError):
     pass
 
 
-class RPCServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class RPCUnhandledRequest(RPCError):
+    pass
 
-    def start(self, host, port, background=True):
-        LOG.info('starting server on %s:%d', host, port)
-        SERVER = ThreadedTCPServer((host, port), RPCDemux)
-        if background:
-            server_thread = threading.Thread(target=SERVER.serve_forever)
-            # run as a daemon, exit when main thread
-            server_thread.daemon = True
-            server_thread.start()
-            LOG.info('running server in thread %s', server_thread.name)
+
+class RPCRequest(object):
+
+    def __init__(self, server, client_id, message):
+        self.server = server
+        self.client_id = client_id
+        self.message = message
+        self.replied = False
+
+    def reply(self, status_code=200, payload=None):
+        self.server.send_message(
+            reply_to=self.message.id, status_code=status_code, payload=payload)
+        self.replied = True
+
+
+class RPCService(object):
+
+    MAX_REQUEST_SIZE = 1042
+    RPC_HANDLERS = {}
+
+    def rpc(func, uri):
+        LOG.info('Registered handler for %s', uri)
+        RPC_HANDLERS[uri] = func
+        return func
+
+    def can_handle(self, uri):
+        return uri in self.RPC_HANDLERS
+
+    def handle_request_from_client(self, request):
+        handler = self.RPC_HANDLERS.get(request.message.uri)
+        if handler:
+            try:
+                LOG.debug(
+                    'Handling request from client %d to %s', request.client_id,
+                    request.message.uri)
+                return handler(request)
+            except:
+                LOG.error(
+                    'Failed to handle request from %d to %s',
+                    request.client_id, request.message.uri)
+                raise RPCHandlerFailed(request.message.uri)
         else:
-            LOG.info('running server in main thread')
-            SERVER.serve_forever()
+            LOG.warn('No route for %s', request.message.uri)
+            raise RPCUnhandledRequest(request.message.uri)
 
 
-# shared server implementation
-SERVER = None
+class RPCServer(network.Server):
 
+    def __init__(self, port):
+        super(RPCServer, self).__init__(*args, **kwargs)
+        self.services = []
 
-def start_server(host, port, background=True):
-    global SERVER
+    def add_service(self, service):
+        self.services.append(service)
 
-    LOG.info('starting server on %s:%d', host, port)
-    SERVER = ThreadedTCPServer((host, port), RPCDemux)
+    def remove_service(self, service):
+        self.services.remove(service)
 
-    if background:
-        server_thread = threading.Thread(target=SERVER.serve_forever)
-        # run as a daemon, exit when main thread
-        server_thread.daemon = True
-        server_thread.start()
-        LOG.info('running server in thread %s', server_thread.name)
-    else:
-        LOG.info('running server in main thread')
-        SERVER.serve_forever()
+    def on_client_disconnected(self, client_id):
+        LOG.info('Client %d disconnected', client_id)
 
-
-def stop_server():
-    global SERVER
-
-    if SERVER:
-        SERVER.shutdown()
-        LOG.info('server stopped')
-    else:
-        LOG.info('server not running')
+    def on_received_message_from_client(self, client_id, message):
+        request = RPCRequest(self, client_id, message)
+        for service in self.services:
+            if service.can_handle(message.uri):
+                try:
+                    reply = service.handle_message_from_client(request)
+                    if not request.replied:
+                        request.reply(status_code=200, payload=reply)
+                except RPCHandlerFailed:
+                    LOG.exception(
+                        'RPC call failed from client %d to %s', client_id,
+                        message.uri)
+                    request.reply(status_code=500)
+                except RPCUnhandledRequest:
+                    LOG.exception(
+                        'RPC call not found from client %d to %s', client_id,
+                        message.uri)
+                    request.reply(status_code=404)
+                return
+        LOG.warn(
+            'Unhandled message from client %d to %s', client_id, message.uri)
+        request.reply(status_code=404)

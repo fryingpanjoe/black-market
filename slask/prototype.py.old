@@ -1,0 +1,65 @@
+import pyglet
+
+
+class Button(object):
+    def __init__(self, x, y, w, h, text=None, image=None):
+        assert text or image
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.label = pyglet.text.Label(
+            text, font_name='Times New Roman', font_size=18,
+            x=(x + w//2), y=(y + h//2),
+            anchor_x='center', anchor_y='center')
+
+    def draw(self):
+        x0 = self.x
+        y0 = self.y
+        x1 = self.x + self.w
+        y1 = self.y + self.h
+        vertices = [x0, y0, x1, y0, x1, y1, x0, y1]
+        pyglet.graphics.draw_indexed(
+            4, pyglet.gl.GL_LINE_STRIP,
+            [0, 1, 2, 3, 0],
+            ('v2f', vertices))
+        self.label.draw()
+
+
+window = pyglet.window.Window()
+
+label = pyglet.text.Label('Hello, world',
+                          font_name='Times New Roman',
+                          font_size=36,
+                          x=window.width//2, y=window.height//2,
+                          anchor_x='center', anchor_y='center')
+
+b = Button(100, 100, 50, 50, text='Build')
+
+
+def draw_rect(x, y, w, h):
+    pyglet.graphics.draw_indexed(4, pyglet.gl.GL_LINE_STRIP,
+        [0, 1, 2, 3, 0],
+        ('v2f', (x, y, x+w, y, x+w, y+h, x, y+h))
+    )
+
+
+@window.event
+def on_draw():
+    window.clear()
+    #label.draw()
+    b.draw()
+    #draw_rect(100, 100, 300, 100)
+
+
+@window.event
+def on_key_press(symbol, modifiers):
+    print 'A key was pressed'
+
+
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    if button == pyglet.window.mouse.LEFT:
+        print 'The left mouse button was pressed.'
+ 
+pyglet.app.run()

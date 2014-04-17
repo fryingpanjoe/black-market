@@ -1,5 +1,5 @@
 import sqlite3
-from contextlib import closing
+import contextlib
 import crypt
 
 DEFAULT_DATABASE = 'bm_user.db'
@@ -23,7 +23,7 @@ class UserStore(object):
         self.db = sqlite3.connect(filename)
 
     def first_run(self):
-        with closing(self.db.cursor()) as cur:
+        with contextlib.closing(self.db.cursor()) as cur:
             cur.execute(USER_TABLE_SCRIPT)
 
     def close(self):
@@ -31,7 +31,7 @@ class UserStore(object):
 
     def add_user(self, username, raw_password, email):
         encrypted_password = crypt.encrypt_password(raw_password)
-        with closing(self.db.cursor()) as cur:
+        with contextlib.closing(self.db.cursor()) as cur:
             try:
                 cur.execute(
                     'insert into bm_account_users (username, password, email) values (?,?,?)',
@@ -46,7 +46,7 @@ class UserStore(object):
                 return user_id
 
     def delete_user(self, user_id, deleted=True):
-        with closing(self.db.cursor()) as cur:
+        with contextlib.closing(self.db.cursor()) as cur:
             try:
                 cur.execute(
                     'update bm_account_users set deleted = ? where user_id = ?',
@@ -59,7 +59,7 @@ class UserStore(object):
                 return True
 
     def suspend_user(self, user_id, suspended=True):
-        with closing(self.db.cursor()) as cur:
+        with contextlib.closing(self.db.cursor()) as cur:
             try:
                 cur.execute(
                     'update bm_account_users set suspended = ? where user_id = ?',
@@ -72,11 +72,11 @@ class UserStore(object):
                 return True
 
     def authenticate_user(self, username, raw_password):
-        with closing(self.db.cursor()) as cur:
+        with contextlib.closing(self.db.cursor()) as cur:
             try:
                 cur.execute(
-                    'select user_id, password from bm_account_users where' +
-                    ' username = ? and suspended = 0 and deleted = 0 limit 1',
+                    'select user_id, password from bm_account_users where ' +
+                    'username = ? and suspended = 0 and deleted = 0 limit 1',
                     (username,))
             except sqlite3.DatabaseError:
                 pass

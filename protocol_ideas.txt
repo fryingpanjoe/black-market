@@ -1,0 +1,143 @@
+
+
+
+
+-- client login
+
+client -> server : LoginRequest
+
+
+-- client enter game
+
+client -> server : ClientInfoRequest
+server -> client : ClientInfo
+
+client -> server : EnterGameRequest
+server -> client : GameState
+
+
+-- server to client gossip
+
+server -> client : NoticeEntity
+server -> client : LostEntity
+
+...
+
+server -> client : NoticePlayer
+server -> client : LostPlayer
+
+server -> client : NoticeShip
+server -> client : LostShip
+
+server -> client : NoticeStaticObject
+server -> client : LostStaticObject
+
+server -> client : NoticeDestination
+server -> client : LostDestination
+
+server -> client : NoticeSignal
+server -> client : LostSignal
+
+server -> client : NoticeEffect
+server -> client : LostEffect
+
+...
+
+server -> client : EntityStateUpdate
+
+client -> server : Ping
+server -> client : Ping
+client -> server : Pong
+server -> client : Pong
+
+
+-- client to server gossip
+
+
+-- trading
+
+client -> server : TradeRequest
+server -> client : Trade
+
+
+-- ship
+
+client -> server : ShipInfoRequest
+server -> client : ShipInfo
+
+
+-- destination
+
+client -> server : DestinationInfoRequest
+server -> client : DestinationInfo
+
+
+-- service
+
+client -> server : ServiceInfoRequest
+server -> client : ServiceInfo
+
+
+-- jump gates
+
+client -> server : GateInfoRequest
+server -> client : GateInfo
+
+client -> server : UseGateRequest
+server -> client : UseGate
+
+
+-- cargo
+
+client -> server : CargoUpdateRequest
+server -> client : CargoUpdate
+
+
+-- crafting
+
+client -> server : BuildRequest
+server -> client : Build
+
+
+-- refining
+
+client -> server : RefineRequest
+server -> client : Refine
+
+
+-- items
+
+client -> server : UseItemRequest
+server -> client : UseItem
+
+
+-- chatting
+
+client -> server : ChatMessage
+
+server -> client : ChatMessage
+
+client -> server : PrivateChatMessage
+server -> client : PrivateChatMessage
+
+(server -> client : ServerChatMessage)
+
+
+-- subscribe to entity state
+
+client -> server : SubscribeEntityStateRequest
+server -> client : EntityStateUpdate
+server -> client : EntityStateUpdate
+...
+client -> server : UnsubscribeEntityStateRequest
+
+
+-- system messages
+
+server -> client : LoginTokenExpired
+server -> client : ServerDisconnect
+
+
+-- travelling
+
+client -> server : TravelRequest

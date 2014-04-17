@@ -3,17 +3,53 @@ import threading
 import inspect
 import logging
 import functools
+import json
 import SocketServer
 
 LOG = logging.getLogger(__name__)
+
+MAX_REQUEST_SIZE = 1024
+RPC_HANDLERS = {}
+
+
+def rpc(func):
+    global RPC_HANDLERS
+
+    handler = RPCHandler.from_func(func)
+    LOG.info('registered RPC %s', handler.name)
+    RPC_HANDLERS[handler.name] = handler
+
+    return func
 
 
 class RPCError(RuntimeError):
     pass
 
 
-class RPCService(object):
+class RPCHandler(object):
 
+    @classmethod
+    def from_func(cls, func):
+        assert inspect.isroutine(func), 'RPC handler must be a routine'
+
+        fspec = inspect.getargspec(func)
+
+        kwargs = {}
+        if fspec.defaults:
+            args = fspec.args[:-len(fspec.defaults)]
+            for arg, defval in \
+                    zip(reversed(fspec.args), reversed(fspec.defaults)):
+                kwargs[arg] = defval
+        else:
+            args = fspec.args
+
+        return RPCHandler(func, func.__name__, args, kwargs)
+
+    def __init__(self, func, name, args, kwargs):
+        self.func = func
+        self.name = name
+        self.args = args
+        self.kwargs = kwargs
 
 
 class RPCDemux(SocketServer.BaseRequestHandler):
