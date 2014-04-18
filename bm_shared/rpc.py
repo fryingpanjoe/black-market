@@ -24,21 +24,26 @@ class RPCRequest(object):
         self.message = message
         self.replied = False
 
-    def reply(self, status_code=200, payload=None):
+    def reply(self, payload=None, status_code=200):
         self.server.send_message(
             reply_to=self.message.id, status_code=status_code, payload=payload)
         self.replied = True
 
 
-class RPCService(object):
+def rpc(uri):
+    def decorator(func):
+        LOG.info('Registered handler for %s', uri)
+        func.is_rpc = True
+        func.uri = uri
+        return func
+    return decorator
+
+
+class RPCServiceBase(object):
 
     MAX_REQUEST_SIZE = 1042
-    RPC_HANDLERS = {}
-
-    def rpc(func, uri):
-        LOG.info('Registered handler for %s', uri)
-        RPC_HANDLERS[uri] = func
-        return func
+    # meta attribute
+    # RPC_HANDLERS
 
     def can_handle(self, uri):
         return uri in self.RPC_HANDLERS
@@ -61,9 +66,30 @@ class RPCService(object):
             raise RPCUnhandledRequest(request.message.uri)
 
 
+class RPCServiceMeta(type):
+
+    def __new__(cls, name, bases, attrs):
+        rpc_handlers = {}
+        for attrname, attrvalue in attrs.iteritems():
+            is_rpc = getattr(attrvalue, 'is_rpc', False)
+            if is_rpc:
+                uri = getattr(attrvalue, 'uri', '')
+                if uri:
+                    rpc_handlers[uri] = attrvalue
+                else:
+                    LOG.warn('No URI defined for rpc %s', attrname)
+        attrs['RPC_HANDLERS'] = rpc_handlers
+        return super(RPCServiceMeta, cls).__new__(cls, name, bases, attrs)
+
+
+class RPCService(RPCServiceBase):
+
+    __metaclass__ = RPCServiceMeta
+
+
 class RPCServer(network.Server):
 
-    def __init__(self, port):
+    def __init__(self, *args, **kwargs):
         super(RPCServer, self).__init__(*args, **kwargs)
         self.services = []
 
