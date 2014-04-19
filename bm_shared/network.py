@@ -3,7 +3,6 @@ import socket
 import select
 import struct
 import zlib
-import bm_proto
 
 LOG = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ def decompress_data(data):
     return zlib.decompress(data)
 
 
-class NetworkException(RuntimeError):
+class WireProtocolError(RuntimeError):
     pass
 
 
@@ -38,19 +37,10 @@ class WriteBuffer(object):
         return len(self.buffer) == 0
 
     def can_write(self, length=1):
-        if self.max_size is None:
-            return True
-        else:
-            return len(self.buffer) + length <= self.max_size
+        return (self.max_size is None or
+                self.max_size >= len(self.buffer) + length)
 
-    def skip(self, length):
-        if len(self.buffer) >= length:
-            self.buffer = self.buffer[length:]
-        else:
-            raise NetworkException(
-                'Not enough data in buffer to skip %d bytes' % (length,))
-
-    def write(self, data):
+    def write_raw(self, data):
         if self.can_write(len(data)):
             self.buffer += data
             return True
@@ -60,22 +50,22 @@ class WriteBuffer(object):
     def write_string(self, data):
         return (self.can_write(2 + len(data)) and
                 self.write_uint16(len(data)) and
-                self.write(data))
+                self.write_raw(data))
 
     def write_int16(self, data):
-        return self.can_write(2) and self.write(struct.pack('!h', data))
+        return self.can_write(2) and self.write_raw(struct.pack('!h', data))
 
     def write_uint16(self, data):
-        return self.can_write(2) and self.write(struct.pack('!H', data))
+        return self.can_write(2) and self.write_raw(struct.pack('!H', data))
 
     def write_int32(self, data):
-        return self.can_write(4) and self.write(struct.pack('!i', data))
+        return self.can_write(4) and self.write_raw(struct.pack('!i', data))
 
     def write_uint32(self, data):
-        return self.can_write(4) and self.write(struct.pack('!I', data))
+        return self.can_write(4) and self.write_raw(struct.pack('!I', data))
 
     def write_float(self, data):
-        return self.can_write(4) and self.write(struct.pack('!f', data))
+        return self.can_write(4) and self.write_raw(struct.pack('!f', data))
 
 
 class ReadBuffer(object):
@@ -108,8 +98,8 @@ class ReadBuffer(object):
         if self.can_read(length):
             self.buffer = self.buffer[length:]
 
-    def read(self, length):
-        if len(self.buffer) >= length:
+    def read_raw(self, length):
+        if self.can_read(length):
             data = self.buffer[:length]
             self.buffer = self.buffer[length:]
             return data
@@ -122,30 +112,30 @@ class ReadBuffer(object):
         length = struct.unpack('!H', self.peek(2))[0]
         if self.can_read(2 + length):
             self.skip(2)
-            return self.read(length)
+            return self.read_raw(length)
         else:
             return None
 
     def read_int16(self):
-        data = self.read(2)
+        data = self.read_raw(2)
         if data:
             data = struct.unpack('!h', data)[0]
         return data
 
     def read_uint16(self):
-        data = self.read(2)
+        data = self.read_raw(2)
         if data:
             data = struct.unpack('!H', data)[0]
         return data
 
     def read_int32(self):
-        data = self.read(4)
+        data = self.read_raw(4)
         if data:
             data = struct.unpack('!i', data)[0]
         return data
 
     def read_uint32(self):
-        data = self.read(2)
+        data = self.read_raw(2)
         if data:
             data = struct.unpack('!I', data)[0]
         return data
@@ -182,7 +172,7 @@ class Channel(object):
         #    float(len(compressed_packet_data)) / len(packet_data))
         self.write_buffer.write_int32(self.send_packet_id)
         self.write_buffer.write_string(compressed_packet_data)
-        self.send_packet_id = (self.send_packet_id + 1) % MAX_PACKET_ID
+        self.send_packet_id = (self.send_packet_id + 1) % self.MAX_PACKET_ID
 
     def write_messages(self):
         writer = WriteBuffer(self.MAX_PACKET_SIZE)
@@ -191,14 +181,14 @@ class Channel(object):
             if not writer.write_string(serialized_message):
                 if len(serialized_message) > self.MAX_PACKET_SIZE:
                     # message will never fit in a packet
-                    raise NetworkException(
+                    raise WireProtocolError(
                         'Message size %d too big' % (len(serialized_message),))
                 else:
                     # write packet and continue with the next message
                     self.write_packet(writer.get_buffer_data())
                     writer = WriteBuffer(self.MAX_PACKET_SIZE)
                     if not writer.write_string(serialized_message):
-                        raise NetworkException('Failed to write message')
+                        raise WireProtocolError('Failed to write message')
         # write remaining data
         if not writer.is_empty():
             self.write_packet(writer.get_buffer_data())

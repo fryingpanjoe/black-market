@@ -124,3 +124,35 @@ class RPCServer(network.Server):
         LOG.warn(
             'Unhandled message from client %d to %s', client_id, message.uri)
         request.reply(status_code=404)
+
+
+class RPCClient(network.Client):
+
+    def __init__(self, *args, **kwargs):
+        super(RPCClient, self).__init__(*args, **kwargs)
+
+    def on_received_message_from_server(self, message):
+        request = RPCRequest(self, 0, message)
+        for service in self.services:
+            if service.can_handle(message.uri):
+                try:
+                    reply = service.handle_message_from_client(request)
+                    if not request.replied:
+                        request.reply(status_code=200, payload=reply)
+                except RPCHandlerFailed:
+                    LOG.exception(
+                        'RPC call failed from client %d to %s', client_id,
+                        message.uri)
+                    request.reply(status_code=500)
+                except RPCUnhandledRequest:
+                    LOG.exception(
+                        'RPC call not found from client %d to %s', client_id,
+                        message.uri)
+                    request.reply(status_code=404)
+                return
+        LOG.warn(
+            'Unhandled message from client %d to %s', client_id, message.uri)
+        request.reply(status_code=404)
+
+    def on_disconnected_from_server(self):
+        LOG.info('Disconnected from server')
