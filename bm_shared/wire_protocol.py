@@ -19,11 +19,23 @@ def decompress_data(data):
 
 
 class CompressionMethod(object):
+
     NONE = 0
     ZLIB = 1
 
 
+class PacketType(object):
+
+    DATA = 1
+    MULTI_DATA = 2
+    HEARTBEAT = 3
+
+
 class WireProtocolError(RuntimeError):
+    pass
+
+
+class BufferOverflow(WireProtocolError):
     pass
 
 
@@ -46,38 +58,42 @@ class WriteBuffer(object):
         return (self.max_size is None or
                 self.max_size >= len(self.buffer) + length)
 
+    def can_write_string(self, data):
+        return self.can_write(2 + len(data))
+
+    def ensure_can_write(self, length=1):
+        if not self.can_write(length):
+            raise BufferOverflow('Buffer overflow: %d bytes' % (length,))
+
     def write_raw(self, data):
-        if self.can_write(len(data)):
-            self.buffer += data
-            return True
-        else:
-            return False
+        self.ensure_can_write(len(data))
+        self.buffer += data
 
     def write_string(self, data):
-        return (self.can_write(2 + len(data)) and
-                self.write_uint16(len(data)) and
-                self.write_raw(data))
+        self.ensure_can_write(2 + len(data))
+        self.write_uint16(len(data))
+        self.write_raw(data)
 
     def write_int8(self, data):
-        return self.can_write(1) and self.write_raw(struct.pack('!b', data))
+        self.write_raw(struct.pack('!b', data))
 
     def write_uint8(self, data):
-        return self.can_write(1) and self.write_raw(struct.pack('!B', data))
+        self.write_raw(struct.pack('!B', data))
 
     def write_int16(self, data):
-        return self.can_write(2) and self.write_raw(struct.pack('!h', data))
+        self.write_raw(struct.pack('!h', data))
 
     def write_uint16(self, data):
-        return self.can_write(2) and self.write_raw(struct.pack('!H', data))
+        self.write_raw(struct.pack('!H', data))
 
     def write_int32(self, data):
-        return self.can_write(4) and self.write_raw(struct.pack('!i', data))
+        self.write_raw(struct.pack('!i', data))
 
     def write_uint32(self, data):
-        return self.can_write(4) and self.write_raw(struct.pack('!I', data))
+        self.write_raw(struct.pack('!I', data))
 
     def write_float(self, data):
-        return self.can_write(4) and self.write_raw(struct.pack('!f', data))
+        self.write_raw(struct.pack('!f', data))
 
 
 class ReadBuffer(object):
@@ -165,6 +181,58 @@ class ReadBuffer(object):
         return data
 
 
+def serialize_packet(max_packet_size, packet_type, packet_id, recv_packet_id,
+                     payload='', compress=False):
+    write_buffer = WriteBuffer(max_packet_size)
+    write_buffer.write_uint8(packet_type)
+    write_buffer.write_uint16(packet_id)
+    write_buffer.write_uint16(recv_packet_id)
+    if compress:
+        compressed_payload = compress_data(payload)
+        #LOG.debug(
+        #    'Compression %d -> %d bytes, compression factor %f',
+        #    len(payload), len(compressed_payload),
+        #    float(len(compressed_payload)) / len(payload))
+        write_buffer.write_uint8(CompressionMethod.ZLIB)
+        write_buffer.write_string(compressed_payload)
+    else:
+        write_buffer.write_uint8(CompressionMethod.NONE)
+        write_buffer.write_string(payload)
+    return write_buffer.get_buffer_data()
+
+
+def deserialize_packet(packet_data):
+    read_buffer = ReadBuffer(packet_data)
+    packet_type = read_buffer.read_uint8()
+    packet_id = read_buffer.read_uint16()
+    recv_packet_id = read_buffer.read_uint16()
+    compression_method = read_buffer.read_uint8()
+    payload = read_buffer.read_string()
+
+    if compression_method == CompressionMethod.NONE:
+        # no decompress
+        pass
+    elif compression_method == CompressionMethod.ZLIB:
+        payload = decompress_data(payload)
+    else:
+        raise WireProtocolError(
+            'Bad compression method %d' % (compression_method,))
+
+    if packet_type == PacketType.DATA:
+        payloads = [payload]
+    elif packet_type == PacketType.MULTI_DATA:
+        payloads = []
+        multi_reader = ReadBuffer(payload)
+        while multi_reader.can_read():
+            payloads.append(multi_reader.read_string())
+    elif packet_type == PacketType.HEARTBEAT:
+        payloads = []
+    else:
+        raise WireProtocolError('Bad packet type %d' % (packet_type,))
+
+    return (packet_id, recv_packet_id, payloads)
+
+
 class Channel(object):
 
     MAX_PACKET_ID = 256
@@ -184,22 +252,72 @@ class Channel(object):
         self.inbox = []
         self.outbox = []
 
-    def write_packet(self, packet_data, use_compression=False):
-        #LOG.debug(
-        #    'Compression %d -> %d bytes, compression factor %f',
-        #    len(packet_data), len(compressed_packet_data),
-        #    float(len(compressed_packet_data)) / len(packet_data))
-        self.write_buffer.write_uint16(self.send_packet_id)
-        self.write_buffer.write_uint16(self.recv_packet_id)
-        if use_compression:
-            compressed_packet_data = compress_data(packet_data)
-            self.write_buffer.write_uint8(CompressionMethod.ZLIB)
-            self.write_buffer.write_string(compressed_packet_data)
-        else:
-            self.write_buffer.write_uint8(CompressionMethod.NONE)
-            self.write_buffer.write_string(packet_data)
-        # update packet id
+    def _write_packet(self, packet_type, packet_id, recv_packet_id, payload='',
+                      compress=False):
+        packet = serialize_packet(
+            self.MAX_PACKET_SIZE,
+            packet_type,
+            packet_id,
+            recv_packet_id,
+            payload=payload,
+            compress=compress)
+        #LOG.debug('Sending %d packet bytes', len(packet))
+        self.write_buffer.write_string(packet)
+
+    def _prepare_next_packet(self):
         self.send_packet_id = (self.send_packet_id + 1) % self.MAX_PACKET_ID
+
+    def _write_and_prepare_next_packet(self, packet_type, payload='',
+                                       compress=False):
+        self._write_packet(
+            self.MAX_PACKET_SIZE,
+            packet_type,
+            self.send_packet_id,
+            self.recv_packet_id,
+            payload=payload,
+            compress=compress)
+        self._prepare_next_packet()
+
+    def send_heartbeat(self):
+        self._write_and_prepare_next_packet(PacketType.HEARTBEAT)
+
+    def send_data(self, payload, compress=False):
+        self._write_and_prepare_next_packet(
+            PacketType.DATA,
+            payload=payload,
+            compress=compress)
+
+    def send_multi_data(self, payloads, compress=False):
+        writer = WriteBuffer(self.MAX_PACKET_SIZE)
+        for payload in payloads:
+            try:
+                writer.write_string(payload)
+            except BufferOverflow:
+                self._write_and_prepare_next_packet(
+                    PacketType.MULTI_DATA,
+                    payload=writer.get_buffer_data(),
+                    compress=compress)
+                self._prepare_next_packet()
+                writer = WriteBuffer(self.MAX_PACKET_SIZE)
+                writer.write_string(payload)
+            except:
+                raise
+            if not writer.write_string(payload):
+                if len(payload) > self.MAX_PACKET_SIZE:
+                    # payload will never fit in packet
+                    raise WireProtocolError(
+                        'Payload too big: %d bytes' % (len(payload),))
+                else:
+
+        packet_sent = self._write_packet(
+            PacketType.DATA,
+            self.send_packet_id,
+            self.recv_packet_id,
+            packet_data,
+            compress=compress)
+        if packet_sent:
+            self._prepare_next_packet()
+        return packet_sent
 
     def write_messages(self):
         writer = WriteBuffer(self.MAX_PACKET_SIZE)
